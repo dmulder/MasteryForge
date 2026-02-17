@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Parent Dashboard - MasteryForge{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>👨‍👩‍👧 Parent Dashboard</h2>
+    <p style="margin-bottom: 1rem;">Monitor your children's learning progress and engagement.</p>
+</div>
+
+{% if student_progress %}
+    {% for item in student_progress %}
+    <div class="card">
+        <h2>{{ item.student.user.get_full_name|default:item.student.user.username }}</h2>
+        
+        <div class="stat-grid">
+            <div class="stat-card">
+                <h3>{{ item.mastered_count }}</h3>
+                <p>Concepts Mastered</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ item.total_concepts }}</h3>
+                <p>Total Concepts</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ item.progress_percentage|floatformat:0 }}%</h3>
+                <p>Progress</p>
+            </div>
+            <div class="stat-card">
+                <h3 style="color: {% if item.avg_frustration >= 0.7 %}#e74c3c{% elif item.avg_frustration >= 0.4 %}#f39c12{% else %}#27ae60{% endif %};">
+                    {{ item.avg_frustration|floatformat:2 }}
+                </h3>
+                <p>Avg. Frustration</p>
+            </div>
+        </div>
+        
+        <h3 style="margin-top: 1.5rem;">Progress Overview</h3>
+        <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: {{ item.progress_percentage }}%;">
+                {{ item.progress_percentage|floatformat:0 }}%
+            </div>
+        </div>
+        
+        {% if item.recent_activity %}
+        <h3 style="margin-top: 1.5rem;">Recent Activity</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Concept</th>
+                    <th>Mastery</th>
+                    <th>Frustration</th>
+                    <th>Attempts</th>
+                    <th>Last Attempt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for state in item.recent_activity %}
+                <tr>
+                    <td>{{ state.concept_id }}</td>
+                    <td>
+                        <span style="color: {% if state.mastery_score >= 0.7 %}#27ae60{% elif state.mastery_score >= 0.4 %}#f39c12{% else %}#e74c3c{% endif %};">
+                            {{ state.mastery_score|floatformat:2 }}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="color: {% if state.frustration_score >= 0.7 %}#e74c3c{% elif state.frustration_score >= 0.4 %}#f39c12{% else %}#27ae60{% endif %};">
+                            {{ state.frustration_score|floatformat:2 }}
+                        </span>
+                    </td>
+                    <td>{{ state.attempts }}</td>
+                    <td>{{ state.last_attempted|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="margin-top: 1rem; color: #7f8c8d;">No activity yet.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card">
+    <p>No students linked to your account yet. Please contact an administrator to link student accounts.</p>
+</div>
+{% endif %}
+{% endblock %}

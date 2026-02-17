@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}{{ concept.title }} - MasteryForge{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ concept.title }}</h2>
+    <p style="margin: 1rem 0; font-size: 1.05rem;">{{ concept.description }}</p>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+        <div class="stat-card">
+            <p style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Difficulty</p>
+            <h3 style="font-size: 1.5rem;">{{ concept.difficulty }}/5</h3>
+        </div>
+        {% if mastery_state %}
+        <div class="stat-card">
+            <p style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Your Mastery</p>
+            <h3 style="font-size: 1.5rem; color: {% if mastery_state.mastery_score >= 0.7 %}#27ae60{% elif mastery_state.mastery_score >= 0.4 %}#f39c12{% else %}#e74c3c{% endif %};">
+                {{ mastery_state.mastery_score|floatformat:2 }}
+            </h3>
+        </div>
+        <div class="stat-card">
+            <p style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Frustration</p>
+            <h3 style="font-size: 1.5rem; color: {% if mastery_state.frustration_score >= 0.7 %}#e74c3c{% elif mastery_state.frustration_score >= 0.4 %}#f39c12{% else %}#27ae60{% endif %};">
+                {{ mastery_state.frustration_score|floatformat:2 }}
+            </h3>
+        </div>
+        <div class="stat-card">
+            <p style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 0.25rem;">Attempts</p>
+            <h3 style="font-size: 1.5rem;">{{ mastery_state.attempts }}</h3>
+        </div>
+        {% endif %}
+    </div>
+    
+    {% if prerequisites %}
+    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #ddd;">
+        <h3>📚 Prerequisites</h3>
+        <p style="margin: 0.5rem 0; color: #7f8c8d;">Before starting this concept, you should be familiar with:</p>
+        <ul style="list-style: none; margin-top: 1rem;">
+            {% for prereq in prerequisites %}
+            <li style="margin: 0.5rem 0; padding: 0.75rem; background: #f8f9fa; border-radius: 4px;">
+                {{ prereq.title }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <div style="margin-top: 2rem;">
+        {% if user.user_type == 'student' %}
+            <a href="{% url 'student_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+            <button class="btn" onclick="alert('Practice mode coming soon!')">Start Practice</button>
+        {% else %}
+            <a href="{% url 'parent_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if mastery_state %}
+<div class="card">
+    <h2>📊 Your Progress</h2>
+    <table>
+        <tr>
+            <th>First Attempted</th>
+            <td>{{ mastery_state.created_at|date:"M d, Y H:i" }}</td>
+        </tr>
+        <tr>
+            <th>Last Attempted</th>
+            <td>{{ mastery_state.last_attempted|date:"M d, Y H:i" }}</td>
+        </tr>
+        <tr>
+            <th>Total Attempts</th>
+            <td>{{ mastery_state.attempts }}</td>
+        </tr>
+        <tr>
+            <th>Mastery Level</th>
+            <td>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: {{ mastery_state.mastery_score|floatformat:0|add:"0" }}%;">
+                        {{ mastery_state.mastery_score|floatformat:2 }}
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <h2>🚀 Ready to Start?</h2>
+    <p>You haven't attempted this concept yet. Start practicing to track your progress!</p>
+</div>
+{% endif %}
+{% endblock %}
