@@ -6,7 +6,7 @@ from django.db.models import Avg
 
 from accounts.models import Student, Parent
 from ai.provider import get_ai_provider
-from content.khan import fetch_khan_youtube_id
+from content.khan import fetch_khan_youtube_id, get_khan_classes
 from content.models import Course, Concept
 from mastery.engine import MasteryEngine
 from mastery.models import MasteryState
@@ -244,13 +244,13 @@ def parent_student_config(request, student_id: int):
     if request.method == 'POST':
         grade_level = request.POST.get('grade_level')
         course_ids = request.POST.getlist('courses')
-        khan_classes_raw = request.POST.get('khan_classes', '')
+        khan_classes_raw = request.POST.getlist('khan_classes')
         starting_concept_id = request.POST.get('starting_concept')
         override_start = bool(request.POST.get('override_starting_point'))
 
         config.grade_level = int(grade_level) if grade_level else None
         config.override_starting_point = override_start
-        config.khan_classes = [item.strip() for item in khan_classes_raw.split('\n') if item.strip()]
+        config.khan_classes = [item.strip() for item in khan_classes_raw if item.strip()]
 
         if starting_concept_id:
             config.starting_concept = Concept.objects.filter(id=starting_concept_id).first()
@@ -285,11 +285,14 @@ def parent_student_config(request, student_id: int):
 
     courses = Course.objects.filter(is_active=True)
     concepts = Concept.objects.filter(is_active=True)
+    khan_sync = get_khan_classes()
 
     context = {
         'student': student,
         'config': config,
         'courses': courses,
         'concepts': concepts,
+        'khan_classes': khan_sync.classes,
+        'khan_warning': khan_sync.warning,
     }
     return render(request, 'dashboard/parent_student_config.html', context)

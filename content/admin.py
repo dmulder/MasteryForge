@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, Concept, KhanLessonCache
+from .models import Course, Concept, KhanLessonCache, KhanClass
 
 
 @admin.register(Course)
@@ -21,4 +21,12 @@ class ConceptAdmin(admin.ModelAdmin):
 class KhanLessonCacheAdmin(admin.ModelAdmin):
     list_display = ('khan_slug', 'youtube_id', 'fetched_at')
     search_fields = ('khan_slug', 'youtube_id')
+    readonly_fields = ('fetched_at',)
+
+
+@admin.register(KhanClass)
+class KhanClassAdmin(admin.ModelAdmin):
+    list_display = ('title', 'subject', 'slug', 'is_active', 'fetched_at')
+    list_filter = ('subject', 'is_active')
+    search_fields = ('title', 'subject', 'slug')
     readonly_fields = ('fetched_at',)

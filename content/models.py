@@ -51,3 +51,19 @@ class KhanLessonCache(models.Model):
 
     def __str__(self):
         return f"Khan cache: {self.khan_slug}"
+
+
+class KhanClass(models.Model):
+    slug = models.CharField(max_length=255, unique=True)
+    title = models.CharField(max_length=255)
+    subject = models.CharField(max_length=200, blank=True)
+    url = models.CharField(max_length=255)
+    raw_data = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['subject', 'title']
+
+    def __str__(self):
+        return self.title

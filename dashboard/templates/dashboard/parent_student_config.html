@@ -27,8 +27,19 @@
 
         <div style="margin-bottom: 1.5rem;">
             <label style="display:block; margin-bottom:0.5rem;">Khan Academy classes (one slug per line)</label>
-            <textarea name="khan_classes" rows="4" style="width:100%; padding:0.75rem; border:1px solid #d1d5db; border-radius:4px;">{% for slug in config.khan_classes %}{{ slug }}{% if not forloop.last %}
-{% endif %}{% endfor %}</textarea>
+            {% if khan_warning %}
+                <div style="margin-bottom:0.75rem; padding:0.75rem; background:#fff3cd; border:1px solid #ffeeba; border-radius:4px; color:#856404;">
+                    {{ khan_warning }} Showing cached results.
+                </div>
+            {% endif %}
+            <select multiple size="8" name="khan_classes" style="width:100%; padding:0.75rem; border:1px solid #d1d5db; border-radius:4px;">
+                {% for item in khan_classes %}
+                <option value="{{ item.slug }}" {% if item.slug in config.khan_classes %}selected{% endif %}>
+                    {{ item.title }}{% if item.subject %} ({{ item.subject }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <div style="font-size:0.85rem; color:#6b7280; margin-top:0.5rem;">Hold Ctrl/Cmd to select multiple classes.</div>
         </div>
 
         <div style="margin-bottom: 1.5rem;">
