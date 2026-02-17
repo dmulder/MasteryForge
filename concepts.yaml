@@ -1,0 +1,79 @@
+concepts:
+  - id: addition_basics
+    title: "Basic Addition"
+    description: "Learn to add single-digit numbers"
+    difficulty: 1
+    prerequisites: []
+
+  - id: subtraction_basics
+    title: "Basic Subtraction"
+    description: "Learn to subtract single-digit numbers"
+    difficulty: 1
+    prerequisites: []
+
+  - id: multiplication_basics
+    title: "Basic Multiplication"
+    description: "Learn multiplication tables up to 10"
+    difficulty: 2
+    prerequisites:
+      - addition_basics
+
+  - id: division_basics
+    title: "Basic Division"
+    description: "Learn to divide numbers using multiplication knowledge"
+    difficulty: 2
+    prerequisites:
+      - multiplication_basics
+
+  - id: fractions_intro
+    title: "Introduction to Fractions"
+    description: "Understanding fractions and their representations"
+    difficulty: 3
+    prerequisites:
+      - division_basics
+
+  - id: fractions_operations
+    title: "Operations with Fractions"
+    description: "Adding, subtracting, multiplying, and dividing fractions"
+    difficulty: 4
+    prerequisites:
+      - fractions_intro
+
+  - id: decimals_intro
+    title: "Introduction to Decimals"
+    description: "Understanding decimal numbers and place value"
+    difficulty: 3
+    prerequisites:
+      - division_basics
+
+  - id: decimals_operations
+    title: "Operations with Decimals"
+    description: "Performing arithmetic operations with decimal numbers"
+    difficulty: 4
+    prerequisites:
+      - decimals_intro
+      - fractions_operations
+
+  - id: percentages
+    title: "Percentages"
+    description: "Understanding and calculating percentages"
+    difficulty: 4
+    prerequisites:
+      - fractions_operations
+      - decimals_operations
+
+  - id: algebra_basics
+    title: "Basic Algebra"
+    description: "Introduction to variables and simple equations"
+    difficulty: 5
+    prerequisites:
+      - multiplication_basics
+      - subtraction_basics
+
+  - id: linear_equations
+    title: "Linear Equations"
+    description: "Solving linear equations with one variable"
+    difficulty: 5
+    prerequisites:
+      - algebra_basics
+      - fractions_operations

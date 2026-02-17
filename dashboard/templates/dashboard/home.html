@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Home - MasteryForge{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Welcome to MasteryForge</h2>
+    <p style="margin: 1rem 0; font-size: 1.1rem; line-height: 1.8;">
+        MasteryForge is a self-hosted adaptive learning platform that guides students through 
+        structured curriculum with intelligent, frustration-aware progress tracking.
+    </p>
+    
+    {% if not user.is_authenticated %}
+        <div style="margin-top: 2rem;">
+            <a href="{% url 'login' %}" class="btn">Login to Get Started</a>
+        </div>
+    {% else %}
+        <div style="margin-top: 2rem;">
+            <h3>Quick Links</h3>
+            <ul style="margin-top: 1rem; list-style: none;">
+                {% if user.user_type == 'student' %}
+                    <li style="margin: 0.5rem 0;">
+                        <a href="{% url 'student_dashboard' %}" class="btn">Go to My Dashboard</a>
+                    </li>
+                {% elif user.user_type == 'parent' %}
+                    <li style="margin: 0.5rem 0;">
+                        <a href="{% url 'parent_dashboard' %}" class="btn">Go to My Dashboard</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Features</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+        <div>
+            <h3 style="color: #3498db; margin-bottom: 0.5rem;">📚 Adaptive Learning</h3>
+            <p>Personalized curriculum that adapts to each student's pace and learning style.</p>
+        </div>
+        <div>
+            <h3 style="color: #3498db; margin-bottom: 0.5rem;">🎯 Mastery Tracking</h3>
+            <p>Track progress and mastery levels across all concepts with detailed analytics.</p>
+        </div>
+        <div>
+            <h3 style="color: #3498db; margin-bottom: 0.5rem;">😊 Frustration Aware</h3>
+            <p>Intelligent system detects frustration and adjusts difficulty accordingly.</p>
+        </div>
+        <div>
+            <h3 style="color: #3498db; margin-bottom: 0.5rem;">👨‍👩‍👧 Parent Portal</h3>
+            <p>Parents can monitor their children's progress and engagement levels.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Login - MasteryForge{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 3rem auto;">
+    <h2>Login</h2>
+    
+    <form method="post" style="margin-top: 2rem;">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 1.5rem;">
+            <label for="id_username" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Username:</label>
+            <input type="text" name="username" id="id_username" required 
+                   style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <label for="id_password" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password:</label>
+            <input type="password" name="password" id="id_password" required 
+                   style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+        </div>
+        
+        {% if form.errors %}
+        <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+            Invalid username or password. Please try again.
+        </div>
+        {% endif %}
+        
+        <button type="submit" class="btn" style="width: 100%; padding: 0.75rem;">Login</button>
+    </form>
+</div>
+{% endblock %}
