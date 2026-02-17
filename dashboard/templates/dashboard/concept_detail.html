@@ -76,7 +76,7 @@
             <th>Mastery Level</th>
             <td>
                 <div class="progress-bar">
-                    <div class="progress-bar-fill" style="width: {{ mastery_state.mastery_score|floatformat:0|add:"0" }}%;">
+                    <div class="progress-bar-fill" style="width: {{ mastery_percentage }}%;">
                         {{ mastery_state.mastery_score|floatformat:2 }}
                     </div>
                 </div>

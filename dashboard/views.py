@@ -115,12 +115,15 @@ def concept_detail(request, concept_id):
     # Get user's mastery state for this concept
     try:
         mastery_state = MasteryState.objects.get(user=request.user, concept_id=concept_id)
+        mastery_percentage = mastery_state.mastery_score * 100
     except MasteryState.DoesNotExist:
         mastery_state = None
+        mastery_percentage = 0
     
     context = {
         'concept': concept,
         'mastery_state': mastery_state,
+        'mastery_percentage': mastery_percentage,
         'prerequisites': [concept_graph.get_concept(pid) for pid in concept.get('prerequisites', [])],
     }
     
