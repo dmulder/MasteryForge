@@ -12,9 +12,23 @@ First, you need Docker installed on your computer:
 
 After installing, make sure Docker is running (you should see a whale icon in your system tray).
 
-## Step 2: Run MasteryForge
+## Step 2: Build the Image
 
-Open a terminal/command prompt and run this ONE command:
+The image is not published yet, so you need to build it locally.
+
+### On Mac/Linux:
+```bash
+docker build -t masteryforge -f Dockerfile .
+```
+
+### On Windows (PowerShell):
+```powershell
+docker build -t masteryforge -f Dockerfile .
+```
+
+## Step 3: Run MasteryForge
+
+Open a terminal/command prompt and run:
 
 ### On Mac/Linux:
 ```bash
@@ -38,13 +52,13 @@ docker run -d `
 
 Wait about 30 seconds for it to start up.
 
-## Step 3: Open MasteryForge
+## Step 4: Open MasteryForge
 
 1. Open your web browser
 2. Go to: `http://localhost:8000`
 3. You should see the MasteryForge home page!
 
-## Step 4: Try It Out
+## Step 5: Try It Out
 
 Login with these test accounts:
 
@@ -62,7 +76,7 @@ You'll see a student dashboard with progress tracking!
 
 You'll see a parent dashboard showing all your students' progress!
 
-## Step 5: Set Up for Your Family
+## Step 6: Set Up for Your Family
 
 ### Create Your Admin Account
 
@@ -90,7 +104,7 @@ In the admin panel:
 3. In the "Students" section, select your children
 4. Click "Save"
 
-## Step 6: Customize Your Curriculum
+## Step 7: Customize Your Curriculum
 
 1. Find where your concepts file is stored:
    - **Mac/Linux**: `~/masteryforge-data/`
