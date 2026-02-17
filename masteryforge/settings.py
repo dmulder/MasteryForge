@@ -135,3 +135,11 @@ AUTH_USER_MODEL = 'accounts.User'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
+
+# AI provider settings
+AZURE_OPENAI_RESOURCE_NAME = os.environ.get('AZURE_OPENAI_RESOURCE_NAME')
+AZURE_OPENAI_API_KEY = os.environ.get('AZURE_OPENAI_API_KEY')
+AZURE_OPENAI_DEPLOYMENT = os.environ.get('AZURE_OPENAI_DEPLOYMENT', 'gpt-5.2-codex')
+AZURE_OPENAI_API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION', '2024-02-15-preview')
+AZURE_OPENAI_MODEL = os.environ.get('AZURE_OPENAI_MODEL')
+OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4')

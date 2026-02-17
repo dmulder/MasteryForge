@@ -97,7 +97,28 @@ podman run -d \
 
 ## 🔐 Setting Up AI Features (Optional)
 
-MasteryForge can use OpenAI's API for personalized hints, problem generation, and explanations.
+MasteryForge can use OpenAI-compatible APIs for personalized hints, problem generation, and explanations.
+
+### Option 1: Azure OpenAI (Microsoft Foundry)
+
+Use a resource name and API key from Azure Cognitive Services.
+
+```bash
+docker run -d \
+  -p 8000:8000 \
+  -v masteryforge-data:/app/data \
+  -e AZURE_OPENAI_RESOURCE_NAME=your-resource-name \
+  -e AZURE_OPENAI_API_KEY=your-azure-key \
+  -e AZURE_OPENAI_DEPLOYMENT=gpt-5.2-codex \
+  --name masteryforge \
+  masteryforge
+```
+
+Optional overrides:
+- `AZURE_OPENAI_API_VERSION` (default: `2024-02-15-preview`)
+- `AZURE_OPENAI_MODEL` (sent as the `model` field when required by your deployment)
+
+### Option 2: OpenAI API
 
 1. **Get an OpenAI API Key**:
    - Go to [platform.openai.com](https://platform.openai.com/api-keys)
