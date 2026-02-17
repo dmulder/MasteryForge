@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Configure Student - MasteryForge{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 900px; margin: 1.5rem auto;">
+    <h2>Configure {{ student.user.get_full_name|default:student.user.username }}</h2>
+    <form method="post" style="margin-top: 1.5rem;">
+        {% csrf_token %}
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display:block; margin-bottom:0.5rem;">Grade level</label>
+            <input type="number" name="grade_level" min="1" max="12" value="{{ config.grade_level|default_if_none:'' }}"
+                   style="width: 120px; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display:block; margin-bottom:0.5rem;">Assign courses</label>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+                {% for course in courses %}
+                <label style="display:flex; align-items:center; gap:0.5rem;">
+                    <input type="checkbox" name="courses" value="{{ course.id }}" {% if course in config.courses.all %}checked{% endif %}>
+                    <span>{{ course.name }} (Grade {{ course.grade_level }})</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display:block; margin-bottom:0.5rem;">Khan Academy classes (one slug per line)</label>
+            <textarea name="khan_classes" rows="4" style="width:100%; padding:0.75rem; border:1px solid #d1d5db; border-radius:4px;">{% for slug in config.khan_classes %}{{ slug }}{% if not forloop.last %}
+{% endif %}{% endfor %}</textarea>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display:block; margin-bottom:0.5rem;">Starting concept</label>
+            <select name="starting_concept" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;">
+                <option value="">Auto-select</option>
+                {% for concept in concepts %}
+                <option value="{{ concept.id }}" {% if config.starting_concept_id == concept.id %}selected{% endif %}>
+                    {{ concept.course.name }} - {{ concept.title }}
+                </option>
+                {% endfor %}
+            </select>
+            <label style="display:flex; align-items:center; gap:0.5rem; margin-top:0.75rem;">
+                <input type="checkbox" name="override_starting_point" value="1" {% if config.override_starting_point %}checked{% endif %}>
+                <span>Override automatic starting point</span>
+            </label>
+        </div>
+
+        <button type="submit" class="btn">Save configuration</button>
+        <a href="{% url 'parent_dashboard' %}" class="btn btn-secondary" style="margin-left: 0.5rem;">Cancel</a>
+    </form>
+</div>
+{% endblock %}

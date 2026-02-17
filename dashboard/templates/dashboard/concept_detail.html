@@ -49,7 +49,7 @@
     <div style="margin-top: 2rem;">
         {% if user.user_type == 'student' %}
             <a href="{% url 'student_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
-            <button class="btn" onclick="alert('Practice mode coming soon!')">Start Practice</button>
+            <a href="{% url 'learning_session' %}" class="btn">Start Learning</a>
         {% else %}
             <a href="{% url 'parent_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
         {% endif %}

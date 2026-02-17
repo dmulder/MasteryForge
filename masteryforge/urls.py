@@ -23,4 +23,6 @@ urlpatterns = [
     path('', dashboard_views.home, name='home'),
     path('dashboard/', include('dashboard.urls')),
     path('accounts/', include('accounts.urls')),
+    path('learn/', dashboard_views.learning_session, name='learning_session'),
+    path('quiz-result/', dashboard_views.submit_quiz_result, name='submit_quiz_result'),
 ]

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Feedback - MasteryForge{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 2rem auto; text-align: center;">
+    <h2>Great work!</h2>
+    {% if explanation %}
+    <p style="margin-top: 1rem;">{{ explanation }}</p>
+    {% endif %}
+    {% if encouragement %}
+    <p style="margin-top: 1rem; font-weight: 600;">{{ encouragement }}</p>
+    {% endif %}
+    <p style="margin-top: 1rem; color: #6b7280;">Moving to your next lesson...</p>
+    <a href="{% url 'learning_session' %}" class="btn" style="margin-top: 1.5rem;">Continue</a>
+</div>
+{% endblock %}

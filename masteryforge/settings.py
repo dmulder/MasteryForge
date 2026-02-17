@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # MasteryForge apps
     'accounts',
-    'mastery',
+    'mastery.apps.MasteryConfig',
     'content',
     'ai',
     'dashboard',

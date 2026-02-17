@@ -21,7 +21,10 @@
         </div>
     </div>
     
-    <h3 style="margin-top: 2rem;">Overall Progress</h3>
+    <div style="display:flex; align-items:center; justify-content: space-between; gap: 1rem; margin-top: 1.5rem;">
+        <h3>Overall Progress</h3>
+        <a href="{% url 'learning_session' %}" class="btn">Continue Learning</a>
+    </div>
     <div class="progress-bar">
         <div class="progress-bar-fill" style="width: {{ progress_percentage }}%;">
             {{ progress_percentage|floatformat:0 }}%
@@ -33,28 +36,12 @@
 <div class="card">
     <h2>🎯 Recommended Next Concept</h2>
     <p style="margin: 1rem 0; font-size: 1.1rem;">
-        Based on your progress and learning pattern, we recommend working on:
+        Ready to continue? We'll guide you straight into the next lesson.
     </p>
     <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 6px; border-left: 4px solid #3498db;">
-        <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">{{ next_concept }}</h3>
-        <a href="{% url 'concept_detail' next_concept %}" class="btn" style="margin-top: 1rem;">Start Learning</a>
+        <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">{{ next_concept.title }}</h3>
+        <a href="{% url 'learning_session' %}" class="btn" style="margin-top: 1rem;">Start Learning</a>
     </div>
-</div>
-{% endif %}
-
-{% if available_concepts %}
-<div class="card">
-    <h2>📋 Available Concepts</h2>
-    <p style="margin-bottom: 1rem;">Concepts you're ready to learn:</p>
-    <ul style="list-style: none;">
-        {% for concept_id in available_concepts %}
-        <li style="margin: 0.75rem 0; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
-            <a href="{% url 'concept_detail' concept_id %}" style="color: #3498db; text-decoration: none; font-weight: 500;">
-                {{ concept_id }}
-            </a>
-        </li>
-        {% endfor %}
-    </ul>
 </div>
 {% endif %}
 
@@ -75,8 +62,8 @@
             {% for state in mastery_states %}
             <tr>
                 <td>
-                    <a href="{% url 'concept_detail' state.concept_id %}" style="color: #3498db; text-decoration: none;">
-                        {{ state.concept_id }}
+                    <a href="{% url 'concept_detail' state.concept.id %}" style="color: #3498db; text-decoration: none;">
+                        {{ state.concept.title }}
                     </a>
                 </td>
                 <td>
@@ -90,7 +77,7 @@
                     </span>
                 </td>
                 <td>{{ state.attempts }}</td>
-                <td>{{ state.last_attempted|date:"M d, Y H:i" }}</td>
+                <td>{{ state.last_seen|date:"M d, Y H:i" }}</td>
             </tr>
             {% endfor %}
         </tbody>

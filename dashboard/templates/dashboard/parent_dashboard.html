@@ -40,6 +40,10 @@
                 {{ item.progress_percentage|floatformat:0 }}%
             </div>
         </div>
+
+        <div style="margin-top: 1.5rem;">
+            <a href="{% url 'parent_student_config' item.student.id %}" class="btn">Configure Learning</a>
+        </div>
         
         {% if item.recent_activity %}
         <h3 style="margin-top: 1.5rem;">Recent Activity</h3>
@@ -56,7 +60,7 @@
             <tbody>
                 {% for state in item.recent_activity %}
                 <tr>
-                    <td>{{ state.concept_id }}</td>
+                    <td>{{ state.concept.title }}</td>
                     <td>
                         <span style="color: {% if state.mastery_score >= 0.7 %}#27ae60{% elif state.mastery_score >= 0.4 %}#f39c12{% else %}#e74c3c{% endif %};">
                             {{ state.mastery_score|floatformat:2 }}
@@ -68,13 +72,48 @@
                         </span>
                     </td>
                     <td>{{ state.attempts }}</td>
-                    <td>{{ state.last_attempted|date:"M d, Y" }}</td>
+                    <td>{{ state.last_seen|date:"M d, Y" }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
         <p style="margin-top: 1rem; color: #7f8c8d;">No activity yet.</p>
+        {% endif %}
+
+        {% if item.heatmap %}
+        <h3 style="margin-top: 1.5rem;">Mastery Heatmap</h3>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
+            {% for cell in item.heatmap %}
+            <div style="padding: 0.75rem; border-radius: 6px; background: {% if cell.mastery >= 0.7 %}#e8f8f0{% elif cell.mastery >= 0.4 %}#fff4e6{% else %}#fdecec{% endif %};">
+                <strong>{{ cell.concept.title }}</strong>
+                <div style="font-size: 0.85rem; margin-top: 0.35rem;">Mastery: {{ cell.mastery|floatformat:2 }}</div>
+                <div style="font-size: 0.85rem;">Frustration: {{ cell.frustration|floatformat:2 }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if item.frustration_trend %}
+        <h3 style="margin-top: 1.5rem;">Frustration Trend</h3>
+        <ul style="list-style: none;">
+            {% for entry in item.frustration_trend %}
+            <li style="margin: 0.5rem 0; color: #6b7280;">
+                {{ entry.last_seen|date:"M d, Y H:i" }} - {{ entry.frustration|floatformat:2 }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if item.learning_history %}
+        <h3 style="margin-top: 1.5rem;">Learning History</h3>
+        <ul style="list-style: none;">
+            {% for session in item.learning_history %}
+            <li style="margin: 0.5rem 0; color: #6b7280;">
+                {{ session.start_time|date:"M d, Y H:i" }} - Avg {{ session.average_score|floatformat:1 }}%
+            </li>
+            {% endfor %}
+        </ul>
         {% endif %}
     </div>
     {% endfor %}

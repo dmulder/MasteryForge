@@ -106,6 +106,12 @@ class AIProvider:
         if isinstance(parsed, dict):
             return parsed
         return None
+
+    def _try_parse_json_value(self, content: str):
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return None
     
     def generate_hint(self, concept_id: str, user_context: Dict) -> str:
         """
@@ -150,6 +156,93 @@ class AIProvider:
         if mastery_score < 0.3:
             return f"For {concept_id}, start with the foundational concepts. Break it down into smaller steps."
         return f"You're making good progress on {concept_id}! Try approaching it from a different angle."
+
+    def explain(self, concept, question: str, answer: str) -> str:
+        """Provide an explanation after a failed quiz."""
+        concept_title = getattr(concept, 'title', str(concept))
+
+        if self.use_azure:
+            content = self._azure_chat_completion(
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'You explain mistakes kindly and clearly in 3-5 sentences.',
+                    },
+                    {
+                        'role': 'user',
+                        'content': (
+                            'Explain why the answer might be wrong for concept: {concept}. '
+                            'Question: {question} Answer: {answer}. '
+                            'Keep it encouraging.'
+                        ).format(concept=concept_title, question=question, answer=answer),
+                    },
+                ],
+                max_tokens=200,
+            )
+            if content:
+                return content.strip()
+
+        return (
+            f"Let's revisit {concept_title}. Review the key steps and try a simpler example first. "
+            "You're making progress, and this concept can take a few tries."
+        )
+
+    def recommend_concepts(self, user, concepts: List[Dict], mastery_states: Dict) -> List[str]:
+        """Suggest concepts to review based on confidence signals."""
+        if self.use_azure:
+            content = self._azure_chat_completion(
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'Return JSON array of concept ids to review. Use provided mastery states.',
+                    },
+                    {
+                        'role': 'user',
+                        'content': json.dumps({
+                            'concepts': concepts,
+                            'mastery_states': mastery_states,
+                        }),
+                    },
+                ],
+                max_tokens=200,
+            )
+            if content:
+                parsed = self._try_parse_json_value(content)
+                if isinstance(parsed, list):
+                    return [str(item) for item in parsed]
+
+        scored = []
+        for concept in concepts:
+            state = mastery_states.get(str(concept.get('id')))
+            confidence = state.get('confidence_score', 0.0) if state else 0.0
+            mastery = state.get('mastery_score', 0.0) if state else 0.0
+            scored.append((concept.get('id'), confidence, mastery))
+
+        scored.sort(key=lambda item: (item[1], item[2]))
+        return [str(item[0]) for item in scored[:3] if item[0]]
+
+    def encourage(self, user) -> str:
+        """Provide encouragement when frustration is high."""
+        name = getattr(user, 'first_name', '') or getattr(user, 'username', 'there')
+
+        if self.use_azure:
+            content = self._azure_chat_completion(
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'You are a supportive coach. Keep encouragement short and warm.',
+                    },
+                    {
+                        'role': 'user',
+                        'content': f"Encourage {name} to keep going with their learning session.",
+                    },
+                ],
+                max_tokens=100,
+            )
+            if content:
+                return content.strip()
+
+        return f"You're doing great, {name}. Let's take a small step and keep the momentum going."
     
     def generate_problem(self, concept_id: str, difficulty: int = 1) -> Dict:
         """

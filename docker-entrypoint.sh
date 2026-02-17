@@ -12,6 +12,7 @@ echo "==> Creating default users if needed..."
 python manage.py shell << 'EOF'
 from accounts.models import User, Student, Parent
 from mastery.models import MasteryState
+from content.models import Course, Concept
 
 # Create admin user if doesn't exist
 if not User.objects.filter(username='admin').exists():
@@ -25,10 +26,24 @@ if not User.objects.filter(username='alice').exists():
     student = User.objects.create_user('alice', 'alice@example.com', 'student123', user_type='student', first_name='Alice', last_name='Johnson')
     student_profile = Student.objects.create(user=student, grade_level=5)
     
-    # Create some mastery states
-    MasteryState.objects.create(user=student, concept_id='addition_basics', mastery_score=0.9, frustration_score=0.1, attempts=8)
-    MasteryState.objects.create(user=student, concept_id='subtraction_basics', mastery_score=0.85, frustration_score=0.15, attempts=6)
-    MasteryState.objects.create(user=student, concept_id='multiplication_basics', mastery_score=0.6, frustration_score=0.4, attempts=12)
+    # Create some mastery states if concepts exist
+    course = Course.objects.first()
+    if course:
+        for external_id, mastery, frustration, attempts in [
+            ('addition_basics', 0.9, 0.1, 8),
+            ('subtraction_basics', 0.85, 0.15, 6),
+            ('multiplication_basics', 0.6, 0.4, 12),
+        ]:
+            concept = Concept.objects.filter(external_id=external_id, course=course).first()
+            if concept:
+                MasteryState.objects.create(
+                    user=student,
+                    concept=concept,
+                    mastery_score=mastery,
+                    confidence_score=mastery,
+                    frustration_score=frustration,
+                    attempts=attempts,
+                )
     print(f"Created student: {student.username}")
 else:
     print("Student alice already exists")

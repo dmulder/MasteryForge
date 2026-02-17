@@ -1,151 +1,116 @@
-"""
-MasteryEngine - Frustration-aware adaptive learning logic
-"""
-from typing import Optional, List, Dict
-from django.db.models import Q
-from .models import MasteryState
-from .concept_graph import get_concept_graph
+"""MasteryEngine - deterministic, frustration-aware logic."""
+from dataclasses import dataclass
+from typing import Optional, List
+
+from django.db import transaction
+from django.utils import timezone
+
+from content.models import Concept, Course
+from ai.provider import get_ai_provider
+from .models import MasteryState, QuizAttempt
+from .graph import ConceptGraph
+
+
+@dataclass
+class MasteryUpdateResult:
+    mastery_state: MasteryState
+    quiz_attempt: QuizAttempt
+    encouragement: Optional[str] = None
+    explanation: Optional[str] = None
+    next_concept: Optional[Concept] = None
 
 
 class MasteryEngine:
-    """
-    Engine that determines next concept based on mastery and frustration levels
-    """
-    
-    MASTERY_THRESHOLD = 0.7
-    FRUSTRATION_THRESHOLD = 0.6
-    HIGH_FRUSTRATION = 0.8
-    
-    def __init__(self, user):
+    """Engine that determines next concept based on mastery and frustration levels."""
+
+    def __init__(self, user, graph: Optional[ConceptGraph] = None):
         self.user = user
-        self.concept_graph = get_concept_graph()
-    
-    def get_mastered_concepts(self) -> List[str]:
-        """Get list of concept IDs that the user has mastered"""
-        mastered = MasteryState.objects.filter(
+        self.graph = graph or ConceptGraph()
+
+    def _get_mastery_state(self, concept: Concept) -> MasteryState:
+        state, _ = MasteryState.objects.get_or_create(
             user=self.user,
-            mastery_score__gte=self.MASTERY_THRESHOLD
-        ).values_list('concept_id', flat=True)
-        return list(mastered)
-    
-    def get_mastery_state(self, concept_id: str) -> Optional[MasteryState]:
-        """Get the mastery state for a specific concept"""
-        try:
-            return MasteryState.objects.get(user=self.user, concept_id=concept_id)
-        except MasteryState.DoesNotExist:
-            return None
-    
-    def get_frustration_score(self, concept_id: str) -> float:
-        """Get the frustration score for a concept (0.0 if not attempted)"""
-        state = self.get_mastery_state(concept_id)
-        return state.frustration_score if state else 0.0
-    
-    def get_available_concepts(self) -> List[str]:
-        """Get concepts that have prerequisites met but are not yet mastered"""
-        mastered = self.get_mastered_concepts()
-        all_concepts = self.concept_graph.get_all_concepts()
-        
-        available = []
-        for concept_id in all_concepts:
-            # Skip if already mastered
-            if concept_id in mastered:
-                continue
-            
-            # Check if prerequisites are met
-            if self.concept_graph.has_prerequisites_met(concept_id, mastered):
-                available.append(concept_id)
-        
-        return available
-    
-    def select_next_concept(self) -> Optional[str]:
-        """
-        Select the next concept using frustration-aware logic
-        
-        Logic:
-        1. Get all available concepts (prerequisites met, not mastered)
-        2. If user has high frustration on current concept, suggest easier alternative
-        3. Otherwise, prioritize concepts with lower frustration and higher readiness
-        """
-        available = self.get_available_concepts()
-        
-        if not available:
-            return None
-        
-        # Score each available concept
-        scored_concepts = []
-        for concept_id in available:
-            concept = self.concept_graph.get_concept(concept_id)
-            state = self.get_mastery_state(concept_id)
-            
-            # Calculate readiness score
-            frustration = state.frustration_score if state else 0.0
-            mastery = state.mastery_score if state else 0.0
-            difficulty = concept.get('difficulty', 1)
-            attempts = state.attempts if state else 0
-            
-            # Score calculation (higher is better)
-            # - Penalize high frustration
-            # - Prefer some progress (mastery > 0) but not too high
-            # - Adjust for difficulty
-            # - Slight preference for concepts with some attempts (engagement)
-            score = (1.0 - frustration) * 2.0  # Frustration heavily weighted
-            score += mastery * 0.5  # Some progress is good
-            score -= (difficulty - 1) * 0.2  # Slightly prefer easier concepts
-            score += min(attempts, 3) * 0.1  # Slight bonus for engagement (capped)
-            
-            scored_concepts.append((concept_id, score, frustration))
-        
-        # Sort by score (descending)
-        scored_concepts.sort(key=lambda x: x[1], reverse=True)
-        
-        # Check if we should switch due to high frustration
-        # If top concept has high frustration, try to find an alternative
-        if scored_concepts[0][2] >= self.HIGH_FRUSTRATION and len(scored_concepts) > 1:
-            # Find concept with lower frustration
-            for concept_id, score, frustration in scored_concepts[1:]:
-                if frustration < self.FRUSTRATION_THRESHOLD:
-                    return concept_id
-        
-        # Return highest scoring concept
-        return scored_concepts[0][0]
-    
-    def update_mastery_state(self, concept_id: str, correct: bool, time_spent: Optional[float] = None) -> MasteryState:
-        """
-        Update mastery and frustration scores based on attempt
-        
-        Args:
-            concept_id: The concept being attempted
-            correct: Whether the attempt was correct
-            time_spent: Optional time spent on the attempt (for frustration calculation)
-        """
-        state, created = MasteryState.objects.get_or_create(
-            user=self.user,
-            concept_id=concept_id,
-            defaults={'mastery_score': 0.0, 'frustration_score': 0.0, 'attempts': 0}
+            concept=concept,
+            defaults={
+                'mastery_score': 0.0,
+                'confidence_score': 0.0,
+                'frustration_score': 0.0,
+                'attempts': 0,
+            },
         )
-        
-        # Update attempts
-        state.attempts += 1
-        
-        # Update mastery score (exponential moving average)
-        alpha = 0.3  # Learning rate
-        if correct:
-            state.mastery_score = state.mastery_score + alpha * (1.0 - state.mastery_score)
-            # Reduce frustration on success
-            state.frustration_score = max(0.0, state.frustration_score - 0.1)
-        else:
-            state.mastery_score = max(0.0, state.mastery_score - alpha * 0.5)
-            # Increase frustration on failure
-            state.frustration_score = min(1.0, state.frustration_score + 0.15)
-        
-        # Additional frustration factors
-        if time_spent and time_spent > 120:  # More than 2 minutes
-            state.frustration_score = min(1.0, state.frustration_score + 0.05)
-        
-        # Consecutive failures increase frustration more
-        if not correct and state.attempts > 3:
-            recent_failures = state.attempts - 3
-            state.frustration_score = min(1.0, state.frustration_score + recent_failures * 0.02)
-        
-        state.save()
         return state
+
+    def update_mastery_after_quiz(self, concept: Concept, score_percent: float) -> MasteryUpdateResult:
+        score_percent = max(0.0, min(100.0, score_percent))
+
+        with transaction.atomic():
+            state = self._get_mastery_state(concept)
+            quiz_attempt = QuizAttempt.objects.create(
+                user=self.user,
+                concept=concept,
+                score_percent=score_percent,
+                raw_data={},
+            )
+
+            state.attempts += 1
+            state.last_seen = timezone.now()
+
+            if score_percent >= 80:
+                state.mastery_score += 0.15
+                state.frustration_score -= 0.2
+                state.confidence_score += 0.1
+            elif score_percent >= 50:
+                state.mastery_score += 0.05
+                state.frustration_score += 0.05
+                state.confidence_score += 0.02
+            else:
+                state.mastery_score += 0.01
+                state.frustration_score += 0.2
+                state.confidence_score -= 0.05
+
+            state.mastery_score = min(1.0, max(0.0, state.mastery_score))
+            state.frustration_score = min(1.0, max(0.0, state.frustration_score))
+            state.confidence_score = min(1.0, max(0.0, state.confidence_score))
+            state.save(update_fields=[
+                'attempts',
+                'last_seen',
+                'mastery_score',
+                'frustration_score',
+                'confidence_score',
+            ])
+
+        return MasteryUpdateResult(mastery_state=state, quiz_attempt=quiz_attempt)
+
+    def select_next_concept(self, course: Optional[Course] = None) -> Optional[Concept]:
+        eligible = self.graph.eligible_concepts(self.user, course=course)
+        concepts = eligible if eligible else list(Concept.objects.filter(is_active=True))
+        if course:
+            concepts = [concept for concept in concepts if concept.course_id == course.id]
+
+        mastery_states = {
+            str(state.concept_id): {
+                'mastery_score': state.mastery_score,
+                'confidence_score': state.confidence_score,
+                'frustration_score': state.frustration_score,
+                'attempts': state.attempts,
+            }
+            for state in MasteryState.objects.filter(user=self.user)
+        }
+
+        ai_suggestions = get_ai_provider().recommend_concepts(
+            self.user,
+            [{'id': concept.id, 'title': concept.title} for concept in concepts],
+            mastery_states,
+        )
+        suggestion_ids = {str(item) for item in ai_suggestions}
+        ai_candidates = [concept for concept in concepts if str(concept.id) in suggestion_ids]
+
+        if ai_candidates:
+            concept = ai_candidates[0]
+            state = MasteryState.objects.filter(user=self.user, concept=concept).first()
+            if state:
+                state.ai_recommended = True
+                state.save(update_fields=['ai_recommended'])
+            return concept
+
+        return self.graph.select_next_concept(self.user, course=course)
