@@ -15,31 +15,41 @@
 
         <div style="margin-bottom: 1.5rem;">
             <label style="display:block; margin-bottom:0.5rem;">Assign courses</label>
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
-                {% for course in courses %}
-                <label style="display:flex; align-items:center; gap:0.5rem;">
-                    <input type="checkbox" name="courses" value="{{ course.id }}" {% if course in config.courses.all %}checked{% endif %}>
-                    <span>{{ course.name }} (Grade {{ course.grade_level }})</span>
-                </label>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div style="margin-bottom: 1.5rem;">
-            <label style="display:block; margin-bottom:0.5rem;">Khan Academy classes (one slug per line)</label>
-            {% if khan_warning %}
-                <div style="margin-bottom:0.75rem; padding:0.75rem; background:#fff3cd; border:1px solid #ffeeba; border-radius:4px; color:#856404;">
-                    {{ khan_warning }} Showing cached results.
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+                <div style="border:1px solid #e5e7eb; border-radius:8px; padding:0.75rem;">
+                    <div style="font-weight:600; margin-bottom:0.5rem;">Built-in courses</div>
+                    <div style="display:grid; gap:0.5rem;">
+                        {% for course in courses %}
+                        <label style="display:flex; align-items:center; gap:0.5rem;">
+                            <input type="checkbox" name="courses" value="{{ course.id }}" {% if course in config.courses.all %}checked{% endif %}>
+                            <span>{{ course.name }} (Grade {{ course.grade_level }})</span>
+                        </label>
+                        {% empty %}
+                        <div style="color:#6b7280; font-size:0.9rem;">No built-in courses available.</div>
+                        {% endfor %}
+                    </div>
                 </div>
-            {% endif %}
-            <select multiple size="8" name="khan_classes" style="width:100%; padding:0.75rem; border:1px solid #d1d5db; border-radius:4px;">
-                {% for item in khan_classes %}
-                <option value="{{ item.slug }}" {% if item.slug in config.khan_classes %}selected{% endif %}>
-                    {{ item.title }}{% if item.subject %} ({{ item.subject }}){% endif %}
-                </option>
-                {% endfor %}
-            </select>
-            <div style="font-size:0.85rem; color:#6b7280; margin-top:0.5rem;">Hold Ctrl/Cmd to select multiple classes.</div>
+
+                <div style="border:1px solid #e5e7eb; border-radius:8px; padding:0.75rem;">
+                    <div style="font-weight:600; margin-bottom:0.5rem;">Khan Academy classes</div>
+                    {% if khan_warning %}
+                        <div style="margin-bottom:0.75rem; padding:0.75rem; background:#fff3cd; border:1px solid #ffeeba; border-radius:4px; color:#856404;">
+                            {{ khan_warning }} Showing cached results.
+                        </div>
+                    {% endif %}
+                    <div style="max-height:260px; overflow:auto; display:grid; gap:0.5rem; padding-right:0.25rem;">
+                        {% for item in khan_classes %}
+                        <label style="display:flex; align-items:flex-start; gap:0.5rem;">
+                            <input type="checkbox" name="khan_classes" value="{{ item.slug }}" {% if item.slug in config.khan_classes %}checked{% endif %}>
+                            <span>{{ item.title }}{% if item.subject %} ({{ item.subject }}){% endif %}</span>
+                        </label>
+                        {% empty %}
+                        <div style="color:#6b7280; font-size:0.9rem;">No Khan classes found yet.</div>
+                        {% endfor %}
+                    </div>
+                    <div style="font-size:0.85rem; color:#6b7280; margin-top:0.5rem;">Selected Khan classes are assigned like courses.</div>
+                </div>
+            </div>
         </div>
 
         <div style="margin-bottom: 1.5rem;">
