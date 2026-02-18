@@ -7,7 +7,7 @@ from django.db.models import Avg
 from accounts.models import Student, Parent
 from ai.provider import get_ai_provider
 from content.khan import fetch_khan_youtube_id, get_khan_classes
-from content.models import Course, Concept
+from content.models import Course, Concept, KhanClass
 from mastery.engine import MasteryEngine
 from mastery.models import MasteryState
 from mastery.services import get_or_start_session, record_quiz
@@ -248,9 +248,11 @@ def parent_student_config(request, student_id: int):
         starting_concept_id = request.POST.get('starting_concept')
         override_start = bool(request.POST.get('override_starting_point'))
 
-        config.grade_level = int(grade_level) if grade_level else None
+        grade_level_value = int(grade_level) if grade_level else None
+        config.grade_level = grade_level_value
         config.override_starting_point = override_start
-        config.khan_classes = [item.strip() for item in khan_classes_raw if item.strip()]
+        khan_slugs = [item.strip() for item in khan_classes_raw if item.strip()]
+        config.khan_classes = khan_slugs
 
         if starting_concept_id:
             config.starting_concept = Concept.objects.filter(id=starting_concept_id).first()
@@ -259,8 +261,48 @@ def parent_student_config(request, student_id: int):
 
         config.save()
 
-        if course_ids:
-            config.courses.set(Course.objects.filter(id__in=course_ids))
+        khan_course_ids = []
+        if khan_slugs:
+            khan_lookup = {
+                item.slug: item
+                for item in KhanClass.objects.filter(slug__in=khan_slugs)
+            }
+            for slug in khan_slugs:
+                khan_class = khan_lookup.get(slug)
+                title = khan_class.title if khan_class else slug
+                course = Course.objects.filter(khan_slug=slug).order_by('id').first()
+                course_grade = grade_level_value or (course.grade_level if course else None) or 5
+                if course:
+                    updates = {}
+                    if course.name != title:
+                        updates['name'] = title
+                    if course.grade_level != course_grade:
+                        updates['grade_level'] = course_grade
+                    if not course.is_active:
+                        updates['is_active'] = True
+                    if updates:
+                        for field, value in updates.items():
+                            setattr(course, field, value)
+                        course.save(update_fields=list(updates.keys()))
+                else:
+                    course = Course.objects.create(
+                        name=title,
+                        khan_slug=slug,
+                        grade_level=course_grade,
+                        is_active=True,
+                    )
+                khan_course_ids.append(course.id)
+
+        selected_course_ids = set()
+        for course_id in course_ids:
+            try:
+                selected_course_ids.add(int(course_id))
+            except (TypeError, ValueError):
+                continue
+        selected_course_ids.update(khan_course_ids)
+
+        if selected_course_ids:
+            config.courses.set(Course.objects.filter(id__in=selected_course_ids))
         else:
             config.courses.clear()
 
