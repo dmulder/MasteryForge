@@ -22,38 +22,48 @@
         <p style="font-size: 0.9rem; color: #7f8c8d;">Current mastery</p>
     </div>
 
-    {% if videos %}
-    {% for video in videos %}
-    <div style="margin-bottom: 1.5rem;">
-        <p style="margin-bottom: 0.5rem; font-weight: 600;">{{ video.title }}</p>
-        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;">
-            <iframe
-                title="{{ video.title }}"
-                src="https://www.khanacademy.org/embed_video?v={{ video.youtube_id }}"
-                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                allow="fullscreen; encrypted-media"
-                allowfullscreen>
-            </iframe>
-        </div>
-        <p style="margin-top: 0.5rem; font-size: 0.9rem;">
-            <a href="{{ video.khan_url }}" target="_blank" rel="noopener noreferrer">Open on Khan Academy</a>
-        </p>
-    </div>
-    {% endfor %}
-    {% else %}
     <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border: 1px dashed #cbd5e1;">
-        <p>Video not available yet for this lesson.</p>
-    </div>
-    {% endif %}
-
-    <div style="margin-top: 2rem;">
-        <button class="btn" id="mark-complete">Mark Lesson Complete</button>
+        <p>Lesson videos will autoplay in full screen. If autoplay is blocked, tap anywhere on the video to start.</p>
     </div>
 </div>
 
+{% if videos %}
+<section id="video-stage" style="position: relative; width: 100vw; height: 100vh; margin: 0;">
+    <div style="position: absolute; inset: 0; background: #0b0b0f;"></div>
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+        <div style="padding: 0.75rem 1.25rem; color: #f8fafc; background: linear-gradient(180deg, rgba(11,11,15,0.8), rgba(11,11,15,0));">
+            <div style="font-size: 0.9rem; opacity: 0.8;">Lesson videos</div>
+            <div id="video-title" style="font-size: 1.1rem; font-weight: 600;">Starting…</div>
+            <div id="video-count" style="font-size: 0.85rem; opacity: 0.75;">&nbsp;</div>
+        </div>
+        <div style="flex: 1; position: relative;">
+            <div id="player" style="position: absolute; inset: 0;"></div>
+            <style>
+                #player iframe {
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+            </style>
+        </div>
+        <div style="padding: 0.75rem 1.25rem; display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; background: linear-gradient(0deg, rgba(11,11,15,0.85), rgba(11,11,15,0));">
+            <button class="btn" id="unmute" type="button">Unmute</button>
+            <button class="btn" id="skip-videos" type="button" style="background: transparent; border: 1px solid #cbd5e1; color: #f8fafc;">Skip to practice</button>
+        </div>
+    </div>
+    <div id="unmute-overlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(11, 11, 15, 0.65); backdrop-filter: blur(2px);">
+        <button class="btn" id="unmute-overlay-button" type="button" style="font-size: 1.1rem; padding: 0.85rem 1.5rem;">Tap to unmute</button>
+    </div>
+    <div id="video-dom-data" style="display: none;">
+        {% for video in videos %}
+        <div class="video-item" data-youtube-id="{{ video.youtube_id }}" data-title="{{ video.title|escapejs }}"></div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 <div class="card" id="quiz-card" style="max-width: 900px; margin: 1.5rem auto; display: none;">
-    <h2>Quick Check</h2>
-    <p style="margin-bottom: 1rem;">Complete the quiz and enter your score to keep moving.</p>
+    <h2>Practice Problems</h2>
+    <p style="margin-bottom: 1rem;">Complete the practice problems and enter your score to keep moving.</p>
     {% if quiz_url %}
     <div style="margin-bottom: 1.5rem;">
         <iframe
@@ -76,20 +86,146 @@
     </form>
 </div>
 
+{{ video_payload|json_script:"video-data" }}
 <script>
-    const completeButton = document.getElementById('mark-complete');
     const quizCard = document.getElementById('quiz-card');
-    if (completeButton && quizCard) {
-        completeButton.addEventListener('click', () => {
+    const videoStage = document.getElementById('video-stage');
+    const videoTitle = document.getElementById('video-title');
+    const videoCount = document.getElementById('video-count');
+    const unmuteButton = document.getElementById('unmute');
+    const unmuteOverlay = document.getElementById('unmute-overlay');
+    const unmuteOverlayButton = document.getElementById('unmute-overlay-button');
+    const skipButton = document.getElementById('skip-videos');
+    let videos = JSON.parse(document.getElementById('video-data')?.textContent || '[]');
+    if (!Array.isArray(videos)) {
+        videos = [];
+    }
+
+    if (!videos.length) {
+        const domItems = Array.from(document.querySelectorAll('#video-dom-data .video-item'));
+        videos = domItems.map((item) => ({
+            youtube_id: item.dataset.youtubeId,
+            title: item.dataset.title,
+        })).filter((item) => item.youtube_id);
+    }
+
+    let player = null;
+    let currentIndex = 0;
+
+    const resizePlayer = () => {
+        if (!player || !videoStage) {
+            return;
+        }
+        const rect = videoStage.getBoundingClientRect();
+        if (rect.width && rect.height) {
+            player.setSize(rect.width, rect.height);
+        }
+    };
+
+    const showQuiz = () => {
+        if (videoStage) {
+            videoStage.remove();
+        }
+        if (quizCard) {
             quizCard.style.display = 'block';
             quizCard.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    const updateVideoMeta = () => {
+        if (!videos.length) {
+            return;
+        }
+        const current = videos[currentIndex];
+        if (videoTitle) {
+            videoTitle.textContent = current.title || 'Lesson video';
+        }
+        if (videoCount) {
+            videoCount.textContent = `Video ${currentIndex + 1} of ${videos.length}`;
+        }
+    };
+
+    const playNextVideo = () => {
+        currentIndex += 1;
+        if (currentIndex >= videos.length) {
+            showQuiz();
+            return;
+        }
+        updateVideoMeta();
+        player.loadVideoById(videos[currentIndex].youtube_id);
+    };
+
+    window.onYouTubeIframeAPIReady = () => {
+        if (!videos.length || !videoStage) {
+            showQuiz();
+            return;
+        }
+        videoStage.scrollIntoView({ behavior: 'smooth' });
+        updateVideoMeta();
+        player = new YT.Player('player', {
+            width: '100%',
+            height: '100%',
+            videoId: videos[0].youtube_id,
+            playerVars: {
+                autoplay: 1,
+                controls: 1,
+                rel: 0,
+                modestbranding: 1,
+                playsinline: 1,
+                enablejsapi: 1,
+            },
+            events: {
+                onReady: (event) => {
+                    try {
+                        event.target.mute();
+                        event.target.playVideo();
+                        resizePlayer();
+                    } catch (err) {
+                        console.warn('Autoplay blocked', err);
+                    }
+                },
+                onStateChange: (event) => {
+                    if (event.data === YT.PlayerState.ENDED) {
+                        playNextVideo();
+                    }
+                }
+            }
+        });
+    };
+
+    if (unmuteButton) {
+        unmuteButton.addEventListener('click', () => {
+            if (player && player.unMute) {
+                player.unMute();
+                player.setVolume(100);
+                if (unmuteOverlay) {
+                    unmuteOverlay.remove();
+                }
+            }
         });
     }
 
-    if (quizCard) {
-        setTimeout(() => {
-            quizCard.style.display = 'block';
-        }, 180000);
+    if (unmuteOverlayButton) {
+        unmuteOverlayButton.addEventListener('click', () => {
+            if (player && player.unMute) {
+                player.unMute();
+                player.setVolume(100);
+            }
+            if (unmuteOverlay) {
+                unmuteOverlay.remove();
+            }
+        });
     }
+
+    if (skipButton) {
+        skipButton.addEventListener('click', showQuiz);
+    }
+
+    if (!videos.length) {
+        showQuiz();
+    }
+
+    window.addEventListener('resize', resizePlayer);
 </script>
+<script src="https://www.youtube.com/iframe_api"></script>
 {% endblock %}

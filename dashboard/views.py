@@ -187,7 +187,11 @@ def concept_detail(request, concept_id):
     mastery_state = MasteryState.objects.filter(user=request.user, concept=concept).first()
     mastery_percentage = (mastery_state.mastery_score * 100) if mastery_state else 0
     video_source = concept.khan_slug or concept.quiz_slug or concept.external_id or ''
-    videos = fetch_khan_related_videos(video_source)
+    videos = [item for item in fetch_khan_related_videos(video_source) if item.youtube_id]
+    video_payload = [
+        {'title': item.title, 'youtube_id': item.youtube_id, 'khan_url': item.khan_url}
+        for item in videos
+    ]
 
     context = {
         'concept': concept,
@@ -195,6 +199,7 @@ def concept_detail(request, concept_id):
         'mastery_percentage': mastery_percentage,
         'prerequisites': concept.prerequisites.all(),
         'videos': videos,
+        'video_payload': video_payload,
     }
 
     return render(request, 'dashboard/concept_detail.html', context)
