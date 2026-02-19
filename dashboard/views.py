@@ -7,7 +7,7 @@ from django.db.models import Avg
 from accounts.models import Student, Parent
 from ai.provider import get_ai_provider
 from content.khan import (
-    fetch_khan_youtube_id,
+    fetch_khan_related_videos,
     get_khan_classes,
     sync_khan_course_concepts,
     KhanScrapeError,
@@ -186,12 +186,15 @@ def concept_detail(request, concept_id):
 
     mastery_state = MasteryState.objects.filter(user=request.user, concept=concept).first()
     mastery_percentage = (mastery_state.mastery_score * 100) if mastery_state else 0
+    video_source = concept.khan_slug or concept.quiz_slug or concept.external_id or ''
+    videos = fetch_khan_related_videos(video_source)
 
     context = {
         'concept': concept,
         'mastery_state': mastery_state,
         'mastery_percentage': mastery_percentage,
         'prerequisites': concept.prerequisites.all(),
+        'videos': videos,
     }
 
     return render(request, 'dashboard/concept_detail.html', context)
@@ -215,9 +218,18 @@ def learning_session(request):
     mastery_state = MasteryState.objects.filter(user=request.user, concept=concept).first()
     mastery_percentage = (mastery_state.mastery_score * 100) if mastery_state else 0
 
-    youtube_id = fetch_khan_youtube_id(concept.khan_slug) if concept.khan_slug else None
+    video_source = concept.khan_slug or concept.quiz_slug or concept.external_id or ''
+    videos = fetch_khan_related_videos(video_source)
 
-    quiz_url = f"https://www.khanacademy.org/{concept.quiz_slug}" if concept.quiz_slug else None
+    quiz_url = None
+    if concept.quiz_slug:
+        quiz_slug = concept.quiz_slug.strip()
+        if quiz_slug.startswith("http://") or quiz_slug.startswith("https://"):
+            quiz_url = quiz_slug
+        elif quiz_slug.startswith("/"):
+            quiz_url = f"https://www.khanacademy.org{quiz_slug}"
+        else:
+            quiz_url = f"https://www.khanacademy.org/{quiz_slug}"
 
     encouragement = None
     if mastery_state and mastery_state.frustration_score > 0.7:
@@ -225,7 +237,7 @@ def learning_session(request):
 
     context = {
         'concept': concept,
-        'youtube_id': youtube_id,
+        'videos': videos,
         'quiz_url': quiz_url,
         'mastery_percentage': mastery_percentage,
         'encouragement': encouragement,

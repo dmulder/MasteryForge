@@ -45,6 +45,13 @@ class KhanClassSync:
     warning: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class KhanVideoItem:
+    title: str
+    youtube_id: str
+    khan_url: str
+
+
 
 def _extract_youtube_id(html: str) -> Optional[str]:
     soup = BeautifulSoup(html, 'html.parser')
@@ -90,13 +97,10 @@ def fetch_khan_youtube_id(khan_slug: str) -> KhanVideoResult:
         cache.set(cache_key, db_cache.youtube_id, timeout=60 * 60 * 12)
         return db_cache.youtube_id
 
-    youtube_id = _try_fetch_oembed(khan_slug)
-
-    if not youtube_id:
-        url = f"https://www.khanacademy.org/{khan_slug}"
-        response = requests.get(url, timeout=12)
-        response.raise_for_status()
-        youtube_id = _extract_youtube_id(response.text)
+    url = f"https://www.khanacademy.org/{khan_slug}"
+    response = requests.get(url, timeout=12)
+    response.raise_for_status()
+    youtube_id = _extract_youtube_id(response.text)
 
     KhanLessonCache.objects.update_or_create(
         khan_slug=khan_slug,
@@ -105,6 +109,282 @@ def fetch_khan_youtube_id(khan_slug: str) -> KhanVideoResult:
     if youtube_id:
         cache.set(cache_key, youtube_id, timeout=60 * 60 * 12)
     return youtube_id
+
+
+def fetch_khan_related_videos(source_slug: str) -> list[KhanVideoItem]:
+    if not _looks_like_khan_slug(source_slug):
+        return []
+    slug = _normalize_slug(None, source_slug)
+    if not slug:
+        return []
+    cache_key = f"khan:videos:{slug}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return [
+            KhanVideoItem(**item) if isinstance(item, dict) else item
+            for item in cached
+            if item
+        ]
+
+    try:
+        videos = _collect_related_videos(slug)
+    except (requests.RequestException, KhanScrapeError) as exc:
+        logger.warning("Khan video fetch failed for %s: %s", slug, exc)
+        videos = []
+
+    serialized = [
+        {'title': item.title, 'youtube_id': item.youtube_id, 'khan_url': item.khan_url}
+        for item in videos
+    ]
+    cache.set(cache_key, serialized, timeout=VIDEO_CACHE_TTL)
+    return videos
+
+
+def _looks_like_khan_slug(value: str) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    if value.startswith("http://") or value.startswith("https://"):
+        return "khanacademy.org" in value
+    return "/" in value
+
+
+def _collect_related_videos(slug: str) -> list[KhanVideoItem]:
+    if _is_video_slug(slug):
+        item = _video_item_from_slug(slug, title="")
+        return [item] if item else []
+
+    html = _fetch_khan_html(slug)
+    links = _extract_related_video_links(html, slug)
+    videos: list[KhanVideoItem] = []
+    seen_ids: set[str] = set()
+
+    for link in links[:RELATED_VIDEO_LIMIT]:
+        item = _video_item_from_slug(link['slug'], title=link.get('title') or "")
+        if not item:
+            continue
+        if item.youtube_id in seen_ids:
+            continue
+        videos.append(item)
+        seen_ids.add(item.youtube_id)
+
+    if not videos:
+        item = _video_item_from_slug(slug, title="")
+        if item:
+            videos.append(item)
+
+    return videos
+
+
+def _fetch_khan_html(slug: str) -> str:
+    url = _normalize_url(None, slug)
+    driver = os.environ.get(SCRAPE_DRIVER_ENV, SCRAPE_DRIVER_DEFAULT).lower()
+    if driver == SCRAPE_DRIVER_REQUESTS:
+        return _fetch_khan_html_requests(url)
+    if driver == SCRAPE_DRIVER_PLAYWRIGHT:
+        return _fetch_khan_html_playwright(url)
+
+    errors: list[str] = []
+    try:
+        return _fetch_khan_html_requests(url)
+    except KhanScrapeError as exc:
+        errors.append(str(exc))
+    try:
+        return _fetch_khan_html_playwright(url)
+    except KhanScrapeError as exc:
+        message = str(exc)
+        if message not in errors:
+            errors.append(message)
+    raise KhanScrapeError("; ".join(errors) or "Failed to fetch Khan Academy HTML.")
+
+
+def _fetch_khan_html_requests(url: str) -> str:
+    headers = {
+        'User-Agent': SCRAPE_USER_AGENT,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    }
+    response = requests.get(url, headers=headers, timeout=SCRAPE_REQUEST_TIMEOUT)
+    response.raise_for_status()
+    html = response.text
+    if any(marker in html for marker in CLIENT_CHALLENGE_MARKERS):
+        logger.warning(
+            "Khan requests scrape hit client challenge page (url=%s, status=%s, html_len=%s).",
+            url,
+            response.status_code,
+            len(html),
+        )
+        raise KhanScrapeChallenge(
+            "Khan Academy returned a client challenge page; HTML content is unavailable for scraping."
+        )
+    return html
+
+
+def _fetch_khan_html_playwright(url: str) -> str:
+    try:
+        from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+    except Exception as exc:
+        raise KhanScrapeDependencyError(
+            "Playwright is required for Khan scraping. Install with "
+            "`pip install playwright` and run `python -m playwright install chromium`."
+        ) from exc
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page(user_agent=SCRAPE_USER_AGENT)
+            try:
+                response = page.goto(url, wait_until='networkidle', timeout=SCRAPE_PLAYWRIGHT_TIMEOUT)
+                response_status = response.status if response else None
+                html = page.content()
+            except PlaywrightTimeoutError as exc:
+                raise KhanScrapeError(f"Playwright timed out loading {url}.") from exc
+
+            if any(marker in html for marker in CLIENT_CHALLENGE_MARKERS):
+                logger.warning(
+                    "Khan Playwright scrape hit client challenge page (url=%s, status=%s, html_len=%s).",
+                    url,
+                    response_status,
+                    len(html),
+                )
+                raise KhanScrapeChallenge(
+                    "Khan Academy returned a client challenge page; HTML content is unavailable for scraping."
+                )
+            return html
+        finally:
+            browser.close()
+
+
+def _extract_related_video_links(html: str, concept_slug: str) -> list[dict]:
+    soup = BeautifulSoup(html, 'html.parser')
+    link_nodes = None
+    json_links: list[dict] = []
+    json_blobs = []
+
+    for script in soup.find_all('script'):
+        if script.get('id') == '__NEXT_DATA__' and script.string:
+            data = _safe_json_loads(script.string)
+            if data:
+                json_blobs.append(data)
+        if script.get('type') == 'application/json' and script.string:
+            data = _safe_json_loads(script.string)
+            if data:
+                json_blobs.append(data)
+        if script.string:
+            embedded = _extract_embedded_json(script.string)
+            if embedded:
+                json_blobs.extend(embedded)
+
+    if json_blobs:
+        json_links = _extract_video_links_from_data(json_blobs, concept_slug)
+    heading = soup.find(string=RELATED_CONTENT_PATTERN)
+    if heading:
+        section = heading.find_parent()
+        if section and section.parent:
+            link_nodes = section.parent.find_all('a', href=True)
+        elif section:
+            link_nodes = section.find_all('a', href=True)
+    if link_nodes is None:
+        link_nodes = soup.find_all('a', href=True)
+
+    prefix = _concept_prefix(concept_slug)
+    results: list[dict] = []
+    seen: set[str] = set()
+    for link in json_links:
+        slug = link.get('slug')
+        if not slug or not _is_video_slug(slug):
+            continue
+        if prefix and not slug.startswith(prefix):
+            continue
+        if slug in seen:
+            continue
+        title = link.get('title') or _title_from_slug(slug)
+        results.append({
+            'slug': slug,
+            'title': title,
+        })
+        seen.add(slug)
+    for link in link_nodes:
+        href = link.get('href')
+        if not isinstance(href, str) or not href:
+            continue
+        slug = _normalize_slug(None, href)
+        if not slug or not _is_video_slug(slug):
+            continue
+        if prefix and not slug.startswith(prefix):
+            continue
+        if slug in seen:
+            continue
+        title = _extract_link_label(link)
+        results.append({
+            'slug': slug,
+            'title': title,
+        })
+        seen.add(slug)
+    return results
+
+
+def _extract_video_links_from_data(json_blobs: list[dict], concept_slug: str) -> list[dict]:
+    prefix = _concept_prefix(concept_slug)
+    results: list[dict] = []
+    seen: set[str] = set()
+
+    for value in _iter_json_strings(json_blobs):
+        slug = _normalize_slug(None, value)
+        if not slug or not _is_video_slug(slug):
+            continue
+        if prefix and not slug.startswith(prefix):
+            continue
+        if slug in seen:
+            continue
+        results.append({
+            'slug': slug,
+            'title': _title_from_slug(slug),
+        })
+        seen.add(slug)
+
+    return results
+
+
+def _iter_json_strings(value: object) -> Iterable[str]:
+    stack = [value]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            for item in current.values():
+                stack.append(item)
+            continue
+        if isinstance(current, list):
+            stack.extend(current)
+            continue
+        if isinstance(current, str):
+            yield current
+
+
+def _concept_prefix(slug: str) -> str:
+    for marker in ("/e/", "/exercise", "/quiz", "/test", "/practice"):
+        if marker in slug:
+            return slug.split(marker, 1)[0].rstrip('/')
+    if '/' in slug:
+        return slug.rsplit('/', 1)[0]
+    return slug
+
+
+def _is_video_slug(slug: str) -> bool:
+    if not slug:
+        return False
+    return any(marker in slug for marker in VIDEO_LINK_MARKERS)
+
+
+def _video_item_from_slug(slug: str, title: str) -> Optional[KhanVideoItem]:
+    html = _fetch_khan_html(slug)
+    youtube_id = _extract_youtube_id(html)
+    if not youtube_id:
+        return None
+    display_title = title or _title_from_slug(slug)
+    return KhanVideoItem(
+        title=display_title,
+        youtube_id=youtube_id,
+        khan_url=_normalize_url(None, slug),
+    )
 
 
 def _subjects_from_urls(urls: Iterable[str]) -> set[str]:
@@ -134,6 +414,8 @@ SCRAPE_CACHE_KEY = "khan:classes:cached"
 SCRAPE_CACHE_TTL = 60 * 60 * 6
 SCRAPE_REFRESH_TTL = timedelta(hours=24)
 COURSE_CONCEPT_CACHE_KEY = "khan:course:concepts:sync:{slug}"
+VIDEO_CACHE_TTL = 60 * 60 * 12
+RELATED_VIDEO_LIMIT = 6
 SCRAPE_DRIVER_ENV = "KHAN_SCRAPE_DRIVER"
 SCRAPE_DRIVER_AUTO = "auto"
 SCRAPE_DRIVER_REQUESTS = "requests"
@@ -175,6 +457,8 @@ COURSE_CONCEPT_MARKERS = (
     "/video",
     "/lesson",
 )
+VIDEO_LINK_MARKERS = ("/v/", "/video")
+RELATED_CONTENT_PATTERN = re.compile(r"\bRelated content\b", re.IGNORECASE)
 
 
 def get_khan_classes(force_refresh: bool = False) -> KhanClassSync:
