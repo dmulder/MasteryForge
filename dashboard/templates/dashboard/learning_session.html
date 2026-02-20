@@ -36,7 +36,7 @@
             <div id="video-title" style="font-size: 1.1rem; font-weight: 600;">Starting…</div>
             <div id="video-count" style="font-size: 0.85rem; opacity: 0.75;">&nbsp;</div>
         </div>
-        <div style="flex: 1; position: relative;">
+        <div id="player-shell" style="flex: 1; position: relative;">
             <div id="player" style="position: absolute; inset: 0;"></div>
             <style>
                 #player iframe {
@@ -93,6 +93,7 @@
     const videoStage = document.getElementById('video-stage');
     const videoTitle = document.getElementById('video-title');
     const videoCount = document.getElementById('video-count');
+    const playerShell = document.getElementById('player-shell');
     const unmuteButton = document.getElementById('unmute');
     const unmuteOverlay = document.getElementById('unmute-overlay');
     const unmuteOverlayButton = document.getElementById('unmute-overlay-button');
@@ -118,10 +119,14 @@
     let currentIndex = 0;
 
     const resizePlayer = () => {
-        if (!player || !videoStage) {
+        if (!player) {
             return;
         }
-        const rect = videoStage.getBoundingClientRect();
+        const target = playerShell || videoStage;
+        if (!target) {
+            return;
+        }
+        const rect = target.getBoundingClientRect();
         if (rect.width && rect.height) {
             player.setSize(rect.width, rect.height);
         }
