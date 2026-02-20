@@ -472,7 +472,12 @@ class AIProvider:
         if 'next_concept_id' not in parsed:
             logger.debug("Azure AI recommend_next_lesson: missing next_concept_id")
             return None
-        logger.debug("Azure AI recommend_next_lesson: next_concept_id=%s", parsed.get('next_concept_id'))
+        logger.debug(
+            "Azure AI recommend_next_lesson: next_concept_id=%s reason=%s repeat=%s",
+            parsed.get('next_concept_id'),
+            parsed.get('reason'),
+            parsed.get('repeat'),
+        )
         return parsed
 
     def encourage(self, user) -> str:
