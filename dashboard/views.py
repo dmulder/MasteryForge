@@ -214,7 +214,16 @@ def learning_session(request):
     session = get_or_start_session(request.user)
     engine = MasteryEngine(request.user)
     config = _get_student_config(request.user)
-    concept, course = _select_learning_concept(engine, config)
+    override_concept = None
+    override_id = request.session.pop('next_concept_id', None)
+    if override_id:
+        override_concept = Concept.objects.filter(id=override_id, is_active=True).first()
+
+    if override_concept:
+        concept = override_concept
+        course = concept.course
+    else:
+        concept, course = _select_learning_concept(engine, config)
 
     if not concept:
         messages.info(request, "No eligible concepts found yet.")
@@ -279,10 +288,17 @@ def submit_quiz_result(request):
     session = get_or_start_session(request.user)
     record_quiz(session, concept, score_value)
 
+    next_concept = engine.recommend_next_concept_after_quiz(concept, score_value)
+    if next_concept:
+        request.session['next_concept_id'] = str(next_concept.id)
+
     explanation = None
     encouragement = None
     if score_value < 50:
-        explanation = get_ai_provider().explain(concept, "", "")
+        question_text = request.POST.get('question_text') or request.POST.get('question')
+        answer_text = request.POST.get('answer_text') or request.POST.get('answer')
+        if question_text and answer_text:
+            explanation = get_ai_provider().explain(concept, question_text, answer_text)
     if result.mastery_state.frustration_score > 0.7:
         encouragement = get_ai_provider().encourage(request.user)
 

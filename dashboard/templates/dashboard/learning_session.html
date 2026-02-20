@@ -65,13 +65,13 @@
     <h2>Practice Problems</h2>
     <p style="margin-bottom: 1rem;">Complete the practice problems and enter your score to keep moving.</p>
     {% if quiz_url %}
-    <div style="margin-bottom: 1.5rem;">
-        <iframe
-            title="Khan Quiz"
-            src="{{ quiz_url }}"
-            style="width: 100%; height: 560px; border: 1px solid #e2e8f0; border-radius: 8px;"
-            sandbox="allow-scripts allow-same-origin allow-forms">
-        </iframe>
+    <div id="practice-popup-status" style="margin-bottom: 1rem; color: #0f172a;">
+        Opening practice problems…
+    </div>
+    <div id="practice-popup-fallback" style="display: none; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+        <a class="btn" href="{{ quiz_url }}" target="_blank" rel="noopener noreferrer">Open in new tab</a>
+        <button class="btn" id="open-practice-popup" type="button" style="background: transparent; border: 1px solid #1d4ed8; color: #1d4ed8;">Try popup again</button>
+        <span style="font-size: 0.85rem; color: #64748b;">If your browser blocks popups, use the new tab button.</span>
     </div>
     {% endif %}
     <form method="post" action="{% url 'submit_quiz_result' %}">
@@ -87,6 +87,7 @@
 </div>
 
 {{ video_payload|json_script:"video-data" }}
+{{ quiz_url|default_if_none:""|json_script:"quiz-url-data" }}
 <script>
     const quizCard = document.getElementById('quiz-card');
     const videoStage = document.getElementById('video-stage');
@@ -96,6 +97,10 @@
     const unmuteOverlay = document.getElementById('unmute-overlay');
     const unmuteOverlayButton = document.getElementById('unmute-overlay-button');
     const skipButton = document.getElementById('skip-videos');
+    const practicePopupStatus = document.getElementById('practice-popup-status');
+    const practicePopupFallback = document.getElementById('practice-popup-fallback');
+    const practicePopupButton = document.getElementById('open-practice-popup');
+    const practiceUrl = JSON.parse(document.getElementById('quiz-url-data')?.textContent || '\"\"');
     let videos = JSON.parse(document.getElementById('video-data')?.textContent || '[]');
     if (!Array.isArray(videos)) {
         videos = [];
@@ -129,6 +134,20 @@
         if (quizCard) {
             quizCard.style.display = 'block';
             quizCard.scrollIntoView({ behavior: 'smooth' });
+        }
+        if (practiceUrl) {
+            const popup = window.open(practiceUrl, 'practiceProblems', 'width=1100,height=800,noopener,noreferrer');
+            if (!popup) {
+                if (practicePopupStatus) {
+                    practicePopupStatus.textContent = 'Popup blocked. Use the options below to open practice problems.';
+                    practicePopupStatus.style.color = '#b91c1c';
+                }
+                if (practicePopupFallback) {
+                    practicePopupFallback.style.display = 'flex';
+                }
+            } else if (practicePopupStatus) {
+                practicePopupStatus.textContent = 'Practice problems opened in a popup.';
+            }
         }
     };
 
@@ -221,7 +240,19 @@
         skipButton.addEventListener('click', showQuiz);
     }
 
-    if (!videos.length) {
+    if (practicePopupButton && practiceUrl) {
+        practicePopupButton.addEventListener('click', () => {
+            const popup = window.open(practiceUrl, 'practiceProblems', 'width=1100,height=800,noopener,noreferrer');
+            if (!popup) {
+                if (practicePopupStatus) {
+                    practicePopupStatus.textContent = 'Popup blocked. Use the new tab button.';
+                    practicePopupStatus.style.color = '#b91c1c';
+                }
+            }
+        });
+    }
+
+    if (!videoStage) {
         showQuiz();
     }
 

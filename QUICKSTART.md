@@ -119,7 +119,29 @@ In the admin panel:
 
 ## Optional: Add AI Features
 
-If you want AI-powered hints and explanations:
+If you want AI-powered hints and explanations, pick one provider.
+
+### Option A: Azure OpenAI (Microsoft Foundry)
+
+1. Get your Azure OpenAI resource name and API key from the Azure portal.
+2. Stop KinderForge: `docker stop masteryforge`
+3. Remove it: `docker rm masteryforge`
+4. Re-run with Azure settings:
+   ```bash
+   docker run -d \
+     --name masteryforge \
+     -p 8000:8000 \
+     -v ~/masteryforge-data:/app/data \
+     -e AZURE_OPENAI_RESOURCE_NAME=your-resource-name \
+     -e AZURE_OPENAI_API_KEY=your-azure-key \
+     -e AZURE_OPENAI_DEPLOYMENT=gpt-5.2-codex \
+     -e AZURE_OPENAI_API_VERSION=2024-02-15-preview \
+     -e AZURE_OPENAI_MODEL=gpt-5.2-codex \
+     --restart unless-stopped \
+     masteryforge
+   ```
+
+### Option B: OpenAI API
 
 1. Get an OpenAI API key from [platform.openai.com](https://platform.openai.com/api-keys)
 2. Stop KinderForge: `docker stop masteryforge`

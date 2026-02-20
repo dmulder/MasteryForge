@@ -110,6 +110,8 @@ docker run -d \
   -e AZURE_OPENAI_RESOURCE_NAME=your-resource-name \
   -e AZURE_OPENAI_API_KEY=your-azure-key \
   -e AZURE_OPENAI_DEPLOYMENT=gpt-5.2-codex \
+  -e AZURE_OPENAI_API_VERSION=2024-02-15-preview \
+  -e AZURE_OPENAI_MODEL=gpt-5.2-codex \
   --name masteryforge \
   masteryforge
 ```
@@ -117,6 +119,30 @@ docker run -d \
 Optional overrides:
 - `AZURE_OPENAI_API_VERSION` (default: `2024-02-15-preview`)
 - `AZURE_OPENAI_MODEL` (sent as the `model` field when required by your deployment)
+
+What these mean:
+- `AZURE_OPENAI_RESOURCE_NAME`: The Azure OpenAI resource name (from your Azure portal).
+- `AZURE_OPENAI_API_KEY`: The API key for that resource.
+- `AZURE_OPENAI_DEPLOYMENT`: The deployment name you created in Azure (e.g., `gpt-5.2-codex`).
+- `AZURE_OPENAI_API_VERSION`: The API version for the Azure OpenAI endpoint.
+- `AZURE_OPENAI_MODEL`: Optional model name to include in the request payload.
+
+Using Docker Compose:
+1. Create a `.env` file next to `docker-compose.yml` with:
+   - `AZURE_OPENAI_RESOURCE_NAME=your-resource-name`
+   - `AZURE_OPENAI_API_KEY=your-azure-key`
+   - `AZURE_OPENAI_DEPLOYMENT=gpt-5.2-codex`
+   - `AZURE_OPENAI_API_VERSION=2024-02-15-preview`
+   - `AZURE_OPENAI_MODEL=gpt-5.2-codex`
+2. Add the variables to the `environment:` section in `docker-compose.yml`:
+   ```yaml
+   environment:
+     - AZURE_OPENAI_RESOURCE_NAME=${AZURE_OPENAI_RESOURCE_NAME:-}
+     - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+     - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-5.2-codex}
+     - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+     - AZURE_OPENAI_MODEL=${AZURE_OPENAI_MODEL:-}
+   ```
 
 ### Option 2: OpenAI API
 
