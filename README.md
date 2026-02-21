@@ -13,6 +13,20 @@ Perfect for homeschool parents who want to track their children's learning progr
 - **Concept Graph**: YAML-based concept definitions with prerequisite relationships
 - **AI Integration**: Optional OpenAI integration for personalized hints and explanations
 
+## 📸 Screenshots
+
+### 👨‍👩‍👧 Parent Experience
+
+Log in as a parent, view your student's progress, assign courses and configure their starting point.
+
+![Parent flow: login → dashboard → configure student](docs/parent_flow.gif)
+
+### 🎓 Student Experience
+
+Students log in and are immediately taken to an active learning session — video content followed by a practice quiz where they enter their score to update their mastery level.
+
+![Student flow: login → learning session → quiz → dashboard](docs/student_flow.gif)
+
 ## 🚀 Quick Start (5 Minutes!)
 
 ### Option 1: Docker (Recommended - Easiest!)
@@ -470,10 +484,29 @@ For developers:
 ## Screenshots
 
 ### Home Page
-![Home Page](https://github.com/user-attachments/assets/32a1e923-4288-4667-b939-9db7af6aae11)
 
-### Student Dashboard
-![Student Dashboard](https://github.com/user-attachments/assets/3b0f9e18-f536-4248-8d11-bd69f911757b)
+![Home Page](docs/screenshots/parent_01_home.png)
 
 ### Login
-![Login Page](https://github.com/user-attachments/assets/86410c77-1d62-4afc-8d86-be97408083e7)
+
+![Login Page](docs/screenshots/parent_02_login.png)
+
+### Parent Dashboard
+
+![Parent Dashboard](docs/screenshots/parent_04_dashboard.png)
+
+### Configure Student Learning
+
+![Configure Student](docs/screenshots/parent_05_configure.png)
+
+### Student Learning Session
+
+![Student Learning Session](docs/screenshots/student_02_learning_concept.png)
+
+### Student Practice Quiz
+
+![Practice Quiz](docs/screenshots/student_03_quiz_form.png)
+
+### Student Dashboard
+
+![Student Dashboard](docs/screenshots/student_06_dashboard.png)
